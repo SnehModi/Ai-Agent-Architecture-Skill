@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Build a complete, modern agentic AI (assistant / copilot / ask-the-data) into any app: provider-agnostic tool-use backend plus a React chat UI, with references for tool design, prompting, memory, multi-agent, retrieval, reliability, trust and evals.",
   "author": { "name": "Sneh Modi" },
-  "repository": "https://github.com/SnehModi/ai-agent-architecture",
+  "repository": "https://github.com/SnehModi/Ai-Agent-Architecture-Skill",
   "license": "MIT",
   "keywords": ["ai", "agent", "llm", "tool-use", "chat-ui", "anthropic", "openai"]
 }

@@ -13,14 +13,14 @@ A Claude Code skill that builds a complete, modern agentic AI into any app — t
 Claude Code:
 
 ```
-/plugin marketplace add SnehModi/ai-agent-architecture
+/plugin marketplace add SnehModi/Ai-Agent-Architecture-Skill
 /plugin install ai-agent-architecture@sneh-skills
 ```
 
 Other agents (Cursor, Codex, etc.):
 
 ```
-npx skills add SnehModi/ai-agent-architecture
+npx skills add SnehModi/Ai-Agent-Architecture-Skill
 ```
 
 ## Use
