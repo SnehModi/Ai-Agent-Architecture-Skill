@@ -1,0 +1,11 @@
+{
+  "name": "sneh-skills",
+  "owner": { "name": "Sneh Modi" },
+  "plugins": [
+    {
+      "name": "ai-agent-architecture",
+      "source": "./",
+      "description": "Build a complete, modern agentic AI into any app: backend tool loop + React chat UI + doctrine references."
+    }
+  ]
+}

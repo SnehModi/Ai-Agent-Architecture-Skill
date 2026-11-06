@@ -1,0 +1,125 @@
+{
+  "skill_name": "ai-agent-architecture",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm building a TypeScript/Express backend and I want to add an AI assistant that lets users ask questions about their projects in natural language, where the model can call our backend to fetch project data (status, tasks, budget). Set up the agent backend for me — the LLM-calling loop, the tools, the whole thing. We use OpenAI.",
+      "expected_output": "A layered agent backend: a ChatProvider seam (own interface, not the OpenAI SDK type) with an OpenAI adapter, an AgentContext carrying identity + pinned scope from the server not the model, an AgentTool contract with RBAC filtering before the model sees a tool, a domain-free bounded streaming loop, project tools with zod schemas, a fixed anti-injection system prompt, and a mention of a golden-set eval gate. The loop must not import an OpenAI type.",
+      "files": [],
+      "assertions": [
+        "loop-imports-no-vendor-sdk",
+        "owned-provider-interface-separate-from-adapter",
+        "scope-identity-set-server-side-not-model",
+        "rbac-filters-tools-before-model-sees-them",
+        "loop-has-explicit-bounds",
+        "tools-are-read-only-with-mode-seam",
+        "mentions-eval-or-quality-gate"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Our app already has an AI chat endpoint but the OpenAI SDK is imported and used all over the place, and there's no clean way to add new tools or swap to Claude later. How should we restructure the agent so adding a provider or a tool is a local change, not a rewrite? Show me the structure.",
+      "expected_output": "Recommends owning a ChatProvider interface as the single seam the loop depends on (so a vendor swap is one new adapter file), a separate AgentTool contract + registry so a new tool is an additive object, and a domain-free loop that imports neither the vendor SDK nor domain code. Should call out that the current SDK-leak is the core problem and show the provider adapter + resolver + tool registry layering.",
+      "files": [],
+      "assertions": [
+        "identifies-sdk-leak-as-core-problem",
+        "recommends-owned-provider-interface",
+        "shows-concrete-adapter-example",
+        "tool-registry-is-additive",
+        "explains-loop-must-stay-domain-and-vendor-agnostic",
+        "gives-actionable-migration-step"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Add an AI chat backend to our multi-tenant SaaS. Different user roles should get access to different tools, and it's critical the model can never read data belonging to a customer account other than the one the current user is looking at. How do we make that safe?",
+      "expected_output": "Centers the security doctrine: AgentContext carries role + a pinned scope (the account/tenant id) set by the controller from the session/URL, never from model input; tools resolve their target from the pinned scope, not a model argument; availableTools() filters tools by the role's permission before the model sees them (can't attempt what it can't see) with execute() re-check as defense-in-depth; tool results are data-not-instructions in the prompt; read-only tools, write hard-rejected. Bounds mentioned.",
+      "files": [],
+      "assertions": [
+        "pinned-scope-set-server-side-never-from-model",
+        "rbac-filters-tool-list-before-model-sees-it",
+        "defense-in-depth-recheck-at-execution",
+        "treats-tool-results-as-data-not-instructions",
+        "provides-concrete-code-or-schema",
+        "addresses-cross-tenant-failure-scenario-explicitly"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Our AI assistant endpoint currently takes the whole messages[] array from the browser on every request. Add conversation memory so chats survive a page refresh and can get long. Show the design.",
+      "expected_output": "Moves history server-side: Conversation and Message records (seq, tool calls/results persisted), a turn endpoint that accepts only { content } for an existing conversationId and rejects/ignores client-supplied messages[] (forgery risk), a persisted rolling summary with compaction to half budget (hysteresis) that never splits a tool-call from its results and skips compaction if the summarizer fails, per-query ownership filter returning 404 for not-owned/malformed ids, an atomic turn lock with expiry and owner-checked release returning 409 on concurrent turns, persist-only-on-success with seqs reserved by atomic increment before insert, a transcript endpoint returning only user/assistant text. Keeps the loop domain-free and vendor-free.",
+      "files": [],
+      "assertions": [
+        "history-is-server-owned-turn-takes-content-only",
+        "explains-client-forged-history-risk",
+        "persists-tool-calls-and-results",
+        "compaction-persisted-rolling-summary-with-hysteresis",
+        "compaction-never-splits-tool-call-from-results",
+        "ownership-filter-with-404-for-not-owned",
+        "atomic-turn-lock-with-owner-checked-release-and-409",
+        "persist-only-on-success-with-atomic-seq-reservation",
+        "loop-stays-domain-and-vendor-free"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "We have the agent backend working (streaming loop, tools, server-side history). Now build the chat UI in our React app so it feels like Claude or ChatGPT — not just a text box. What do we build and how does it talk to the backend?",
+      "expected_output": "Uses the ui scaffold: ChatShell mounted in a layout route so the stream survives navigation; a single useAgentRun hook over a POST fetch ReadableStream SSE parser (not EventSource); rAF-batched delta flushing; message phases thinking/streaming/stopped/error/done; a ReasoningBlock and an ActivityTrail driven by reasoning/step events within 300 ms; Stop (Esc), Retry, edit and regenerate; optimistic user message with ids back-filled from done; re-attach on reload via GET .../run with transcript polling fallback; ProposalCards rendered from stored proposals; EmptyState with role/page starters and FollowUps chips; skeletons not spinners. Lists the endpoints the UI expects.",
+      "files": [],
+      "assertions": [
+        "uses-ui-scaffold-chatshell-in-layout-route",
+        "single-useAgentRun-hook-over-fetch-sse-not-eventsource",
+        "activity-trail-and-reasoning-block-within-300ms",
+        "stop-retry-edit-regenerate-present",
+        "reattach-on-reload-with-transcript-fallback",
+        "cards-from-stored-proposals-not-model-text",
+        "starters-and-followups",
+        "lists-endpoints-the-ui-expects"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Users want the assistant to remember things about them between chats (their region, preferred currency, the projects they care about). Add that.",
+      "expected_output": "Adds the cross-conversation memory layer per memory.md: a Memory store per user/tenant with kind/text/source/confidence/lastUsedAt; async extraction after a successful turn with a cheap model and responseSchema, capped and deduped, never on the request path; retrieval of a capped top-k rendered as bracketed data lines before the user text (hints, not asserted facts; never overriding a tool result); user control (list, delete, forget tool, settings toggle, 'memory used' indicator); same 404 isolation rule; memories on the trace; golden cases for recall and for memory-vs-tool-result precedence. Does not touch the loop.",
+      "files": [],
+      "assertions": [
+        "memory-store-per-user-with-source-and-confidence",
+        "extraction-async-after-turn-not-on-request-path",
+        "retrieval-capped-and-rendered-as-fenced-data-lines",
+        "memories-never-override-tool-results",
+        "user-can-list-and-delete-memories",
+        "loop-untouched",
+        "golden-cases-for-recall-and-precedence"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "The assistant should be able to do small things directly — tag a record, assign it to someone, toggle a flag — without making the user accept a card every single time. But it must never issue an invoice or delete anything on its own. How do we structure that?",
+      "expected_output": "Applies the confirmation tiers from trust.md: read / propose / act / write. Reversible, low-blast-radius changes become mode 'act' tools with a mandatory undo(ctx, receipt), an ActionReceipt row, an action SSE event and an Undo affordance for N minutes via POST /actions/:id/undo with permission re-check; invoice/delete/anything irreversible, financial, external or visible to others stays at propose (card) or is not offered; write remains hard-rejected; parity rule still applies; audit row for every act and undo; a tier table in the README with the justification per tool; negative golden cases that the agent never acts on an irreversible request.",
+      "files": [],
+      "assertions": [
+        "introduces-act-tier-with-mandatory-undo-and-receipt",
+        "irreversible-financial-external-stay-at-propose-or-not-offered",
+        "write-still-hard-rejected",
+        "undo-route-with-permission-recheck",
+        "audit-row-for-act-and-undo",
+        "tier-justification-table",
+        "negative-golden-cases"
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "Our agent's answers are often vague or it picks the wrong tool. The prompt has been tweaked ten times. What should we actually do?",
+      "expected_output": "Diagnoses with the trace first (tool observations, what the model saw), then applies tool-design.md before any prompt change: tool descriptions with when/when-not, flat enum-heavy schemas with .describe() on every field, fewer broader tools, slim business-named results, errors that say what to try next. Then the prompting.md skeleton (capabilities derived from tools, clarify-vs-assume, formatting rules) under a prompt change protocol: diff, golden set, judge run, prompt version on traces. Adds thumbs-down and rejected proposals to a review queue that grows the golden set. Explicitly says fix the tool before the prompt.",
+      "files": [],
+      "assertions": [
+        "reads-trace-tool-observations-first",
+        "fixes-tool-descriptions-and-schemas-before-prompt",
+        "fewer-broader-tools-slim-labelled-results",
+        "prompt-change-protocol-with-golden-set-and-judge",
+        "prompt-version-on-traces",
+        "feedback-review-queue-grows-golden-set"
+      ]
+    }
+  ]
+}
